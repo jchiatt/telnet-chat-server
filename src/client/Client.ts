@@ -2,22 +2,25 @@ import { Socket } from "net";
 import { ChatServer } from "../server/ChatServer";
 import { Auth } from "./Auth";
 import { appendNewLine } from "../helpers/appendNewLine";
+import { Channel } from "../server/Channel";
 
 export class Client implements Client {
-  auth: Auth;
-  chatServer: ChatServer;
-  ip: string | null;
-  socket: Socket;
+  _auth: Auth;
+  _chatServer: ChatServer;
+  _channels: Record<string, Channel>;
+  _ip: string | null;
+  _socket: Socket;
 
   constructor(socket: Socket, chatServer: ChatServer) {
-    this.auth = new Auth(this, chatServer);
-    this.chatServer = chatServer;
-    this.ip = socket.remoteAddress || null;
-    this.socket = socket;
+    this._auth = new Auth(this, chatServer);
+    this._channels = {};
+    this._chatServer = chatServer;
+    this._ip = socket.remoteAddress || null;
+    this._socket = socket;
   }
 
   broadcast(input: string) {
-    Object.entries(this.chatServer.clients).forEach(([username, client]) => {
+    Object.entries(this._chatServer.clients).forEach(([username, client]) => {
       // broadcast message to all connected clients
       if (client !== this) {
         client.writeLine(`${new Date().toLocaleString()} > ${username} -- ${input}`);
@@ -28,8 +31,21 @@ export class Client implements Client {
     });
   }
 
+  joinChannel(name: string) {
+    // does this channel exist?
+    if (this._chatServer._channels[name]) {
+      return;
+    }
+
+    // channel doesn't exist, create it
+    const channel = new Channel(name, this);
+    this._channels[name] = channel;
+  }
+
   greet() {
-    this.writeLine(`Welcome ${this.auth.username}. ${this.chatServer.clientCount} users are here.`);
+    this.writeLine(
+      `Welcome ${this._auth.username}. ${this._chatServer.clientCount} users are here.`,
+    );
   }
 
   handleCommand(input: string) {
@@ -42,7 +58,13 @@ export class Client implements Client {
         return;
       }
       case "JOIN": {
-        // /JOIN CHANNEL <channel name> - Join a channel, create if it doesn't exist.
+        // /JOIN <channel name> - Join a channel, create if it doesn't exist.
+        // this._chatServer
+        this.joinChannel(params.join(" "));
+        return;
+      }
+      case "JOINED": {
+        this.showChannels();
         return;
       }
       case "KICK": {
@@ -50,17 +72,17 @@ export class Client implements Client {
         return;
       }
       case "LEAVE": {
-        // /LEAVE CHANNEL <channel name> - Leave a channel.
+        // /LEAVE <channel name> - Leave a channel.
         return;
       }
       case "LOGIN": {
         // /LOGIN <desired username> - Authenticate with the server.
-        this.auth.login(params.join(" "));
+        this._auth.login(params.join(" "));
         return;
       }
       case "LOGOUT": {
         // /LOGOUT - Log out.
-        this.auth.logout();
+        this._auth.logout();
         return;
       }
       case "MEMBER": {
@@ -80,10 +102,6 @@ export class Client implements Client {
         // /HERE <channel name> - List users in this channel. List global users if no channel provided.
         return;
       }
-      case "UPDATE": {
-        // /UPDATE CHANNEL <channel name> - Update channel name for a channel you're an admin of.
-        return;
-      }
       case "WHISPER": {
         // /WHISPER <username> - Send a private message.
         return;
@@ -101,7 +119,7 @@ export class Client implements Client {
       return;
     }
 
-    if (!this.auth.authenticated) {
+    if (!this._auth.authenticated) {
       this.writeLine("You are not authenticated. Type /AUTH to authenticate.");
       return;
     }
@@ -114,24 +132,31 @@ export class Client implements Client {
       #####################################################################################################
       # COMMANDS
       #
-      # /CHANNELS - List available channels.
-      # /JOIN CHANNEL <channel name> - Join a channel, create if it doesn't exist.
+      # /CHANNELS - List all available channels.
+      # /JOIN <channel name> - Join a channel, create if it doesn't exist.
+      # /JOINED - List channels you've joined.
       # /KICK <channel name> <username> - Kick a user from a channel you're an admin of.
-      # /LEAVE CHANNEL <channel name> - Leave a channel.
+      # /LEAVE <channel name> - Leave a channel.
       # /LOGIN <desired username> - Authenticate with the server.
       # /LOGOUT - Log out.
       # /MEMBER - List channels you've joined.
       # /NICK <new username> - Change your username.
       # /HELP - List available commands.
       # /HERE <channel name> - List users in this channel. List global users if no channel provided.
-      # /UPDATE CHANNEL <channel name> - Update channel name for a channel you're an admin of.
       # /WHISPER <username> - Send a private message.
       #####################################################################################################
     `);
   }
 
+  showChannels() {
+    this.writeLine(`Your channels:`);
+    Object.keys(this._channels).forEach((name) => {
+      this.writeLine(`# ${name}`);
+    });
+  }
+
   write(msg: string) {
-    this.socket.write(msg);
+    this._socket.write(msg);
   }
 
   writeLine(msg: string) {

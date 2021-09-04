@@ -25,7 +25,7 @@ export const handleClientConnection = (chatServer: ChatServer) => {
     // clean up when a client disconnects
     socket.on("close", () => {
       const removed = chatServer.deleteClient(client);
-      const remoteAddr = removed.ip;
+      const remoteAddr = removed._ip;
 
       console.log(`Connection from ${remoteAddr} closed.`);
     });

@@ -1,13 +1,18 @@
 import net, { Server, Socket } from "net";
 import { Client } from "../client/Client";
 import { Clients } from "../types";
+import { Channel } from "./Channel";
+
+type Channels = Record<string, Channel>;
 
 export class ChatServer {
+  _channels: Channels;
   _clients: Clients;
   _clientCount: number;
   _server: Server;
 
   constructor() {
+    this._channels = {};
     this._clients = {};
     this._clientCount = 0;
 
@@ -56,14 +61,14 @@ export class ChatServer {
   }
 
   registerClient(client: Client) {
-    if (client.auth.username) {
-      this._clients[client.auth.username] = client;
+    if (client._auth.username) {
+      this._clients[client._auth.username] = client;
     }
   }
 
   deleteClient(client: Client) {
-    if (client.auth.username && this._clients[client.auth.username]) {
-      delete this._clients[client.auth.username];
+    if (client._auth.username && this._clients[client._auth.username]) {
+      delete this._clients[client._auth.username];
     }
 
     return client;
