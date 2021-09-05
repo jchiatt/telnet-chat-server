@@ -45,6 +45,9 @@ export class Auth {
     // register client with chat server
     this._chatServer.registerClient(this._client);
 
+    // set client's default nickname to username
+    this._client.updateNickname(username);
+
     // Hello there!
     this._client.greet();
 

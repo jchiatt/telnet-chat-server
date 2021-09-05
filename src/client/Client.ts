@@ -10,7 +10,7 @@ export class Client {
   private _chatServer: ChatServer;
   private _channels: Record<string, Channel>;
   private _ip: string | null;
-  private _nickname: string;
+  private _nickname: string | null;
   private _socket: Socket;
 
   constructor(socket: Socket, chatServer: ChatServer) {
@@ -19,7 +19,7 @@ export class Client {
     this._channels = {};
     this._chatServer = chatServer;
     this._ip = socket.remoteAddress || null;
-    this._nickname = this._auth.username!;
+    this._nickname = null;
     this._socket = socket;
   }
 
@@ -45,6 +45,10 @@ export class Client {
 
   get ip() {
     return this._ip;
+  }
+
+  get nickname() {
+    return this._nickname;
   }
 
   broadcast(input: string) {
@@ -121,8 +125,12 @@ export class Client {
         return this.showUserChannels();
       }
       case "NICK": {
-        // /NICK <new username> - Change your username.
-        return;
+        // /NICK <new nickname> - Change your nickname.
+        if (!params.length) {
+          this.writeLine("You must provide a new nickname.");
+          return false;
+        }
+        return this.updateNickname(params.join(" "));
       }
       case "HELP": {
         // /HELP - List available commands.
@@ -243,6 +251,8 @@ export class Client {
     channel.removeMember(this);
     delete this._channels[name];
 
+    channel.broadcastAsSystem(`${this.nickname} left ${channel.name}.`);
+
     // if left channel was active channel, unset active channel
     if (this.activeChannel && name === this.activeChannel.name) {
       this._activeChannel = null;
@@ -349,6 +359,7 @@ export class Client {
     // no previously active channel
     if (!this.activeChannel) {
       this._activeChannel = this.channels[name];
+      this.writeLine(`There are ${this.activeChannel!.memberCount} users here.`);
       return true;
     }
 
@@ -357,10 +368,21 @@ export class Client {
       return true;
     }
 
+    const previousChannel = this.activeChannel;
+
     // switch the channel
     this._activeChannel = this.channels[name];
-    this.writeLine(`Switched active channel to ${name}.`);
+    this.writeLine(
+      `Switched active channel to ${name}. There are ${this.activeChannel.memberCount} users here.`,
+    );
+    this.activeChannel.broadcastAsSystem(`${this.nickname} joined ${this.activeChannel.name}.`);
+    previousChannel.broadcastAsSystem(`${this.nickname} left ${this.activeChannel.name}.`);
+
     return true;
+  }
+
+  updateNickname(newNickname: string) {
+    this._nickname = newNickname;
   }
 
   whisper(user: string, message: string) {

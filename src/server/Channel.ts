@@ -40,15 +40,15 @@ export class Channel {
     client.writeLine(`Successfully joined ${this._name}.`);
 
     // notify channel members that member was added
-    this.broadcastAsSystem(`${client.auth.username} joined #${this.name}.`);
+    this.broadcastAsSystem(`${client.nickname} joined #${this.name}.`);
   }
 
   broadcast(input: string) {
     const currentTime = new Date().toLocaleTimeString();
 
     // broadcast message to all connected clients whose active channel is sender's active channel
-    Object.entries(this.members).forEach(([username, client]) => {
-      client.writeLine(`[${currentTime}] #${this.name} <${username}> ${input}`);
+    Object.values(this.members).forEach((client) => {
+      client.writeLine(`[${currentTime}] #${this.name} <${client.nickname}> ${input}`);
     });
 
     return true;
@@ -58,7 +58,7 @@ export class Channel {
     const currentTime = new Date().toLocaleTimeString();
 
     // broadcast message to all connected clients with this channel as their active channel
-    Object.entries(this.members).forEach(([username, client]) => {
+    Object.values(this.members).forEach((client) => {
       client.writeLine(`[${currentTime}] ***System: ${input}`);
     });
 
