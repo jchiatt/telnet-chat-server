@@ -1,3 +1,5 @@
+import { Message } from "../message/Message";
+import { Response } from "../message/Response";
 import { ChatServer } from "../server/ChatServer";
 import { Client } from "./Client";
 
@@ -23,19 +25,33 @@ export class Auth {
   }
 
   login(username: string) {
+    let messages = [];
+
     if (this.authenticated) {
-      this._client.writeLine("You are already authenticated. Type /LOGOUT to log out.");
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this._client,
+        "You are already authenticated. Type /LOGOUT to log out.",
+      );
+      messages.push(message);
     }
 
     if (!username) {
-      this._client.writeLine("You must supply a username. Type /HELP for help.");
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this._client,
+        "You must supply a username. Type /HELP for help.",
+      );
+      messages.push(message);
     }
 
     if (this._chatServer.clients[username]) {
-      this._client.writeLine("Username already taken. Please try another.");
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this._client,
+        "Username already taken. Please try another.",
+      );
+      messages.push(message);
     }
 
     // mark as authenticated and set the username
@@ -49,15 +65,21 @@ export class Auth {
     this._client.updateNickname(username);
 
     // Hello there!
-    this._client.greet();
+    messages.push(this._client.greet());
 
-    return true;
+    return new Response(true, messages);
   }
 
   logout() {
+    let messages = [];
+
     if (!this.authenticated) {
-      this._client.writeLine(`You aren't currently logged in. Did you mean "/LOGIN"?`);
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this._client,
+        `You aren't currently logged in. Did you mean "/LOGIN"?`,
+      );
+      messages.push(message);
     }
 
     // deregister client with chat server
@@ -67,8 +89,9 @@ export class Auth {
     this._authenticated = false;
     this._username = null;
 
-    this._client.writeLine("You are now logged out.");
+    const message = new Message(this._chatServer, this._client, "You are now logged out.");
+    messages.push(message);
 
-    return true;
+    return new Response(true, messages);
   }
 }

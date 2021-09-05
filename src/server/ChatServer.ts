@@ -1,5 +1,6 @@
 import net, { Server, Socket } from "net";
 import { Client } from "../client/Client";
+import { Response } from "../message/Response";
 import { Channels, Clients } from "../types";
 
 export class ChatServer {
@@ -39,6 +40,16 @@ export class ChatServer {
     client.listCommands();
 
     return client;
+  }
+
+  handleResponse(response: Response) {
+    if (response.success) {
+      response.messages.forEach((message) => {
+        message.send();
+      });
+    } else {
+      // log failed responses
+    }
   }
 
   listen(port?: number) {

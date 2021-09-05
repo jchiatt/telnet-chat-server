@@ -18,7 +18,12 @@ export const handleClientConnection = (chatServer: ChatServer) => {
       // if data ends with a new line, enter has been pressed
       if (bufferToString.endsWith(newLine)) {
         bufferToString = bufferToString.replace(newLine, "");
-        client.handleInput(bufferToString);
+
+        const response = client.handleInput(bufferToString);
+        if (response) {
+          // @ts-expect-error
+          chatServer.handleResponse(response);
+        }
       }
     });
 

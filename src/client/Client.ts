@@ -3,6 +3,8 @@ import { appendNewLine } from "../helpers/appendNewLine";
 import { Auth } from "./Auth";
 import { Channel } from "../server/Channel";
 import { ChatServer } from "../server/ChatServer";
+import { Message } from "../message/Message";
+import { Response } from "../message/Response";
 
 export class Client {
   private _activeChannel: Channel | null;
@@ -53,8 +55,13 @@ export class Client {
 
   broadcast(input: string) {
     if (!this.activeChannel) {
-      this.writeLine("You aren't in an active channel. Please join a channel to send a message.");
-      return false;
+      const message = new Message(
+        this.chatServer,
+        this,
+        "You aren't in an active channel. Please join a channel to send a message.",
+      );
+      const response = new Response(true, message);
+      return response;
     }
 
     return this.activeChannel.broadcast(input);
@@ -62,11 +69,15 @@ export class Client {
 
   greet() {
     const { clientCount } = this._chatServer;
-    clientCount === 1
-      ? this.writeLine(`Welcome ${this._auth.username}. You are alone.`)
-      : this.writeLine(
-          `Welcome ${this._auth.username}. ${this._chatServer.clientCount} users are here.`,
-        );
+
+    const message = new Message(
+      this._chatServer,
+      this,
+      clientCount === 1
+        ? `Welcome ${this._auth.username}. You are alone.`
+        : `Welcome ${this._auth.username}. ${this._chatServer.clientCount} users are here.`,
+    );
+    return message;
   }
 
   handleCommand(input: string) {
@@ -75,8 +86,12 @@ export class Client {
     command = command.toUpperCase();
 
     if (!this._auth.authenticated && command !== "LOGIN") {
-      this.writeLine("You are not authenticated. Type /AUTH to authenticate.");
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this,
+        "You are not authenticated. Type /AUTH to authenticate.",
+      );
+      return new Response(true, message);
     }
 
     switch (command) {
@@ -95,8 +110,9 @@ export class Client {
       case "KICK": {
         // /KICK <username> <channel name> - Kick a user from a channel you're an admin of.
         if (params.length < 2) {
-          this.writeLine("You must provide a channel name.");
-          return false;
+          const message = new Message(this._chatServer, this, "You must provide a channel name.");
+
+          return new Response(true, message);
         }
 
         const username = params[0];
@@ -111,8 +127,12 @@ export class Client {
       case "LOGIN": {
         // /LOGIN <desired username> - Authenticate with the server.
         if (params.length > 1) {
-          this.writeLine("Spaces aren't allowed in usernames. Type /HELP for help.");
-          return false;
+          const message = new Message(
+            this._chatServer,
+            this,
+            "Spaces aren't allowed in usernames. Type /HELP for help.",
+          );
+          return new Response(true, message);
         }
         return this._auth.login(params[0]);
       }
@@ -127,32 +147,36 @@ export class Client {
       case "NICK": {
         // /NICK <new nickname> - Change your nickname.
         if (!params.length) {
-          this.writeLine("You must provide a new nickname.");
-          return false;
+          const message = new Message(this._chatServer, this, "You must provide a new nickname.");
+          return new Response(true, message);
         }
-        return this.updateNickname(params.join(" "));
+        return new Response(true, this.updateNickname(params.join(" ")));
       }
       case "HELP": {
         // /HELP - List available commands.
         return this.listCommands();
       }
       case "HERE": {
-        // /HERE <channel name> - List users in your active channel. List global users if no channel provided.
+        // /HERE - List users in your active channel.
         return this.showActiveChannelActiveMembers();
       }
       case "SWITCH": {
         // /SWITCH <channel name> - Switch to a channel you're a member of.
         if (!params.length) {
-          this.writeLine("You must provide a channel name.");
-          return false;
+          const message = new Message(this._chatServer, this, "You must provide a channel name.");
+          return new Response(true, message);
         }
         return this.switchActiveChannel(params.join(" "));
       }
       case "WHISPER": {
         // /WHISPER <username> <message> - Send a private message.
         if (params.length < 2) {
-          this.writeLine("You must specify a username and a message.");
-          return false;
+          const message = new Message(
+            this._chatServer,
+            this,
+            "You must specify a username and a message.",
+          );
+          return new Response(true, message);
         }
 
         const user = params[0];
@@ -162,7 +186,12 @@ export class Client {
       }
       default: {
         // the default could be sending a message, but we're already handling that as a default in this.handleInput
-        this.writeLine("Invalid command. Type /HELP for help.");
+        const message = new Message(
+          this._chatServer,
+          this,
+          "Invalid command. Type /HELP for help.",
+        );
+        return new Response(true, message);
       }
     }
   }
@@ -173,8 +202,12 @@ export class Client {
     }
 
     if (!this._auth.authenticated) {
-      this.writeLine("You are not authenticated. Type /AUTH to authenticate.");
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this,
+        "You are not authenticated. Type /AUTH to authenticate.",
+      );
+      return new Response(true, message);
     }
 
     return this.broadcast(input);
@@ -182,50 +215,90 @@ export class Client {
 
   joinChannel(name: string) {
     if (!name) {
-      this.writeLine("You must supply a channel name. Type /HELP for help.");
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this,
+        "You must supply a channel name. Type /HELP for help.",
+      );
+      return new Response(true, message);
     }
 
     // does this channel exist?
     if (this._chatServer.channels[name]) {
-      this._chatServer.channels[name].addMember(this);
+      const messages: Message[] = [];
+
+      // are you already a member of this channel?
+      if (Object.keys(this._chatServer.channels[name].members).includes(this.auth.username!)) {
+        messages.push(
+          new Message(
+            this.chatServer,
+            this,
+            `You are already a member of #${name}. Did you mean to /SWITCH?`,
+          ),
+        );
+
+        return new Response(true, messages);
+      }
+
+      messages.concat(this._chatServer.channels[name].addMember(this));
       this._channels[name] = this._chatServer.channels[name];
       this.switchActiveChannel(name);
-      this.writeLine(`Joined ${name}. There are ${this._channels[name].memberCount} users here.`);
-      return true;
+
+      messages.push(
+        new Message(
+          this._chatServer,
+          this,
+          `Joined ${name}. There are ${this._channels[name].memberCount} users here.`,
+        ),
+      );
+      return new Response(true, messages);
     }
 
     // channel doesn't exist, create it
     const channel = new Channel(name, this);
     this._channels[name] = channel;
     this.switchActiveChannel(name);
-    return true;
+
+    const message = new Message(
+      channel,
+      this,
+      `Joined ${name}. There are ${this._channels[name].memberCount} users here.`,
+    );
+    return new Response(true, message);
   }
 
   kickMember(username: string, channel: string) {
     // does this channel exist
     if (!this._chatServer.channels[channel]) {
-      this.writeLine(`Channel ${channel} doesn't exist.`);
-      return false;
+      const message = new Message(this._chatServer, this, `Channel ${channel} doesn't exist.`);
+      return new Response(true, message);
     }
 
     // is this client a channel admin?
     if (this._chatServer.channels[channel].admin._auth.username !== this._auth.username) {
-      this.writeLine(`You aren't an admin of ${channel}.`);
-      return false;
+      const message = new Message(this._chatServer, this, `You aren't an admin of ${channel}.`);
+      return new Response(true, message);
     }
 
     // Does this client exist?
     const client = this._chatServer.clients[username];
     if (!client) {
-      this.writeLine(`${username} isn't a member of the server.`);
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this,
+        `${username} isn't a member of the server.`,
+      );
+      return new Response(true, message);
     }
 
     // Is this client a member of the channel you want to kick them from?
     if (!client.channels[channel]) {
-      this.writeLine(`${username} isn't a member of ${channel}.`);
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this,
+        `${username} isn't a member of ${channel}.`,
+      );
+      return new Response(true, message);
     }
 
     // Disable with extreme prejudice
@@ -236,14 +309,22 @@ export class Client {
 
   leaveChannel(name: string) {
     if (!name) {
-      this.writeLine("You must supply a channel name. Type /HELP for help.");
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this,
+        "You must supply a channel name. Type /HELP for help.",
+      );
+      return new Response(true, message);
     }
 
     // if the channel doesn't exist, bail
     if (!this._chatServer.channels[name]) {
-      this.writeLine(`Channel ${name} doesn't exist. Type /HELP for help.`);
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this,
+        `Channel ${name} doesn't exist. Type /HELP for help.`,
+      );
+      return new Response(true, message);
     }
 
     // channel exists, leave it
@@ -251,18 +332,25 @@ export class Client {
     channel.removeMember(this);
     delete this._channels[name];
 
-    channel.broadcastAsSystem(`${this.nickname} left ${channel.name}.`);
+    const message = new Message(
+      this._chatServer,
+      channel,
+      `${this.nickname} left ${channel.name}.`,
+    );
 
     // if left channel was active channel, unset active channel
     if (this.activeChannel && name === this.activeChannel.name) {
       this._activeChannel = null;
     }
 
-    return true;
+    return new Response(true, message);
   }
 
   listCommands() {
-    this.writeLine(`
+    const message = new Message(
+      this._chatServer,
+      this,
+      `
       #####################################################################################################
       # COMMANDS
       #
@@ -276,14 +364,14 @@ export class Client {
       # /MEMBER - List channels you've joined.
       # /NICK <new display name> - Change your display name.
       # /HELP - List available commands.
-      # /HERE <channel name> - List users in this channel. List global users if no channel provided.
+      # /HERE - List users in this channel.
       # /SWITCH <channel name> - Switch to a channel you're a member of.
       # /USERNAME <new username> - Change your username.
       # /WHISPER <username> <message> - Send a private message.
       #####################################################################################################
-    `);
-
-    return true;
+    `,
+    );
+    return new Response(true, message);
   }
 
   removeActiveChannel() {
@@ -291,76 +379,105 @@ export class Client {
     return true;
   }
 
+  send(message: string) {
+    return this.writeLine(message);
+  }
+
   showActiveChannel() {
     if (!this.activeChannel) {
-      this.writeLine(`You have no active channel.`);
-      return true;
+      const message = new Message(this._chatServer, this, `You have no active channel.`);
+      return new Response(true, message);
     }
 
-    this.writeLine(`${this.activeChannel.name} is your active channel.`);
-    return true;
+    const message = new Message(
+      this._chatServer,
+      this,
+      `${this.activeChannel.name} is your active channel.`,
+    );
+    return new Response(true, message);
   }
 
   showActiveChannelActiveMembers() {
     if (!this.activeChannel) {
-      this.writeLine(`You have no active channel.`);
-      return true;
+      const message = new Message(this._chatServer, this, `You have no active channel.`);
+      return new Response(true, message);
     }
 
-    this.writeLine(`Members here:`);
+    const messages = [];
+    const message = new Message(this._chatServer, this, "Members here:");
+    messages.push(message);
     Object.keys(this.activeChannel.members).forEach((username) => {
-      this.writeLine(username);
+      const message = new Message(this._chatServer, this, username);
+      messages.push(message);
     });
 
-    return true;
+    return new Response(true, messages);
   }
 
   showAllChannels() {
     const channels = Object.keys(this._chatServer.channels);
     if (!channels.length) {
-      this.writeLine("There are no public channels on the server. Create one!");
-      return false;
+      const message = new Message(
+        this._chatServer,
+        this,
+        "There are no public channels on the server. Create one!",
+      );
+      return new Response(true, message);
     }
 
-    this.writeLine("Global channels:");
+    const messages = [];
+    const message = new Message(this._chatServer, this, "Global channels:");
+    messages.push(message);
     channels.forEach((name) => {
-      this.writeLine(`#${name}`);
+      const message = new Message(this._chatServer, this, `#${name}`);
+      messages.push(message);
     });
 
-    return true;
+    return new Response(true, message);
   }
 
   showUserChannels() {
     const channels = Object.keys(this._channels);
     if (!channels.length) {
-      this.writeLine("You haven't joined any channels.");
-      return false;
+      const message = new Message(this._chatServer, this, "You haven't joined any channels.");
+      return new Response(true, message);
     }
 
-    this.writeLine("Your channels:");
+    const messages = [];
+    const message = new Message(this._chatServer, this, "Your channels:");
+    messages.push(message);
     channels.forEach((name) => {
-      this.writeLine(`#${name}${name === this.activeChannel!.name ? "* (active channel)" : ""}`);
+      const message = new Message(
+        this._chatServer,
+        this,
+        `#${name}${name === this.activeChannel!.name ? "* (active channel)" : ""}`,
+      );
+      messages.push(message);
     });
 
-    return true;
+    return new Response(true, message);
   }
 
   switchActiveChannel(name: string) {
     if (!this.chatServer.channels[name]) {
-      this.writeLine(`That's not a valid channel.`);
-      return false;
+      const message = new Message(this._chatServer, this, `That's not a valid channel.`);
+      return new Response(true, message);
     }
 
     if (!this.channels[name]) {
-      this.writeLine(`You aren't a member of ${name}.`);
-      return false;
+      const message = new Message(this._chatServer, this, `You aren't a member of ${name}.`);
+      return new Response(true, message);
     }
 
     // no previously active channel
     if (!this.activeChannel) {
       this._activeChannel = this.channels[name];
-      this.writeLine(`There are ${this.activeChannel!.memberCount} users here.`);
-      return true;
+      const message = new Message(
+        this._chatServer,
+        this,
+        `There are ${this.activeChannel!.memberCount} users here.`,
+      );
+      return new Response(true, message);
     }
 
     // desired channel is already active channel
@@ -372,27 +489,40 @@ export class Client {
 
     // switch the channel
     this._activeChannel = this.channels[name];
-    this.writeLine(
+
+    const messages = [];
+    const message = new Message(
+      this._chatServer,
+      this,
       `Switched active channel to ${name}. There are ${this.activeChannel.memberCount} users here.`,
     );
-    this.activeChannel.broadcastAsSystem(`${this.nickname} joined ${this.activeChannel.name}.`);
-    previousChannel.broadcastAsSystem(`${this.nickname} left ${this.activeChannel.name}.`);
 
-    return true;
+    messages.push(
+      this.activeChannel.broadcastAsSystem(`${this.nickname} joined ${this.activeChannel.name}.`),
+    );
+    messages.push(
+      previousChannel.broadcastAsSystem(`${this.nickname} left ${this.activeChannel.name}.`),
+    );
+
+    return new Response(true, message);
   }
 
   updateNickname(newNickname: string) {
     this._nickname = newNickname;
+    const message = new Message(this.chatServer, this, "Nickname updated");
+    return message;
   }
 
-  whisper(user: string, message: string) {
+  whisper(user: string, content: string) {
     const currentTime = new Date().toLocaleTimeString();
 
-    this.chatServer.clients[user].writeLine(
-      `[${currentTime}] (whisper) <${this.auth.username}> ${message}`,
+    const message = new Message(
+      this,
+      this.chatServer.clients[user],
+      `(whisper) <${this.nickname}> ${content}`,
     );
 
-    return true;
+    return new Response(true, message);
   }
 
   write(msg: string) {

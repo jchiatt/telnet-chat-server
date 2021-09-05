@@ -1,3 +1,5 @@
+import { Message } from "../message/Message";
+import { Response } from "../message/Response";
 import { Client } from "../types";
 
 export class Channel {
@@ -37,51 +39,72 @@ export class Channel {
 
   addMember(client: Client) {
     this.members[client.auth.username!] = client;
-    client.writeLine(`Successfully joined ${this._name}.`);
+
+    const messages = [];
+
+    const clientMessage = new Message(this, client, `Successfully joined ${this._name}.`);
+    const systemMessage = this.broadcastAsSystem(`${client.nickname} joined #${this.name}.`);
+
+    messages.push(clientMessage);
+    messages.concat(systemMessage);
 
     // notify channel members that member was added
-    this.broadcastAsSystem(`${client.nickname} joined #${this.name}.`);
+    return messages;
   }
 
   broadcast(input: string) {
     const currentTime = new Date().toLocaleTimeString();
+    const messages: Message[] = [];
 
-    // broadcast message to all connected clients whose active channel is sender's active channel
+    // broadcast message to all connected clients whose active channel is this channel
     Object.values(this.members).forEach((client) => {
-      client.writeLine(`[${currentTime}] #${this.name} <${client.nickname}> ${input}`);
+      const message = new Message(this, client, `#${this.name} <${client.nickname}> ${input}`);
+      messages.push(message);
     });
 
-    return true;
+    return new Response(true, messages);
   }
 
   broadcastAsSystem(input: string) {
     const currentTime = new Date().toLocaleTimeString();
+    const messages: Message[] = [];
 
     // broadcast message to all connected clients with this channel as their active channel
     Object.values(this.members).forEach((client) => {
-      client.writeLine(`[${currentTime}] ***System: ${input}`);
+      const message = new Message(null, this, `***System: ${input}`);
+      messages.push(message);
     });
 
-    return true;
+    return messages;
   }
 
   kick(client: Client, requester: Client) {
+    const messages = [];
     if (requester.auth.username === this.admin.auth.username) {
       delete this.members[client.auth.username!];
-      requester.writeLine(`Kicked ${client.auth.username} from ${this._name}.`);
+      messages.push(
+        new Message(this, requester, `Kicked ${client.auth.username} from ${this._name}.`),
+      );
       delete client.channels[this._name];
 
       // if channel they were kicked from was their active channel, unset their active channel
       client.removeActiveChannel();
 
-      client.writeLine(`You were kicked from ${this._name}.`);
+      messages.push(new Message(this, client, `You were kicked from ${this._name}.`));
     } else {
-      requester.writeLine(`You aren't the admin of ${this._name}.`);
+      messages.push(new Message(this, requester, `You aren't the admin of ${this._name}.`));
     }
+
+    return new Response(true, messages);
   }
 
   removeMember(client: Client) {
     delete this.members[client.auth.username!];
-    client.writeLine(`Left ${this._name}.`);
+    const message = new Message(this, client, `Left ${this._name}.`);
+    return new Response(true, message);
+  }
+
+  send(message: string) {
+    return this.broadcast(message);
   }
 }
