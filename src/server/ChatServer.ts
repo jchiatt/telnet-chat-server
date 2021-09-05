@@ -1,15 +1,12 @@
 import net, { Server, Socket } from "net";
 import { Client } from "../client/Client";
-import { Clients } from "../types";
-import { Channel } from "./Channel";
-
-type Channels = Record<string, Channel>;
+import { Channels, Clients } from "../types";
 
 export class ChatServer {
-  _channels: Channels;
-  _clients: Clients;
-  _clientCount: number;
-  _server: Server;
+  private _channels: Channels;
+  private _clients: Clients;
+  private _clientCount: number;
+  private _server: Server;
 
   constructor() {
     this._channels = {};
@@ -20,20 +17,20 @@ export class ChatServer {
     this._server = server;
   }
 
-  get clients() {
-    return this._clients;
+  get channels() {
+    return this._channels;
   }
 
   get clientCount() {
     return Object.keys(this._clients).length;
   }
 
-  get server() {
-    return this._server;
+  get clients() {
+    return this._clients;
   }
 
   addEventListener(event: string, callback: (socket: Socket) => void) {
-    this.server.on(event, callback);
+    this._server.on(event, callback);
   }
 
   createClient(socket: Socket) {
@@ -45,7 +42,7 @@ export class ChatServer {
   }
 
   listen(port?: number) {
-    this.server.listen(port || 8023);
+    this._server.listen(port || 8023);
   }
 
   onConnection(callback: (socket: Socket) => void) {
@@ -61,14 +58,14 @@ export class ChatServer {
   }
 
   registerClient(client: Client) {
-    if (client._auth.username) {
-      this._clients[client._auth.username] = client;
+    if (client.auth.username) {
+      this.clients[client.auth.username] = client;
     }
   }
 
   deleteClient(client: Client) {
-    if (client._auth.username && this._clients[client._auth.username]) {
-      delete this._clients[client._auth.username];
+    if (client.auth.username && this.clients[client.auth.username]) {
+      delete this.clients[client.auth.username];
     }
 
     return client;

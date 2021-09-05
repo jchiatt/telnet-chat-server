@@ -1,26 +1,30 @@
 import { Client } from "../types";
 
 export class Channel {
-  _name: string;
-  _admin: Client;
-  _members: Record<string, Client>;
+  private _name: string;
+  private _admin: Client;
+  private _members: Record<string, Client>;
 
   constructor(name: string, admin: Client) {
     this._name = name;
     this._admin = admin;
 
-    if (!admin._auth || !admin._auth._authenticated) {
+    if (!admin.auth || !admin.auth.authenticated) {
       throw new Error("Not authenticated.");
     }
 
     this._members = {};
     this.addMember(admin);
 
-    this._admin._chatServer._channels[name] = this;
+    this._admin.chatServer.channels[name] = this;
   }
 
   get admin() {
     return this._admin;
+  }
+
+  get memberCount() {
+    return Object.keys(this._members).length;
   }
 
   get members() {
@@ -31,37 +35,53 @@ export class Channel {
     return this._name;
   }
 
-  broadcast(sender: Client, input: string) {
-    Object.entries(this.members).forEach(([username, client]) => {
-      // broadcast message to all connected clients in this channel
-      if (client !== sender) {
-        client.writeLine(`${new Date().toLocaleString()} > ${sender._auth.username} -- ${input}`);
-      } else {
-        // change output format to indicate that *you* sent this message
-        client.writeLine(
-          `${new Date().toLocaleString()} > You (${sender._auth.username}) -- ${input}`,
-        );
-      }
-    });
+  addMember(client: Client) {
+    this.members[client.auth.username!] = client;
+    client.writeLine(`Successfully joined ${this._name}.`);
+
+    // notify channel members that member was added
+    this.broadcastAsSystem(`${client.auth.username} joined #${this.name}.`);
   }
 
-  addMember(client: Client) {
-    this._members[client._auth.username!] = client;
-    client.writeLine(`Successfully joined ${this.name}.`);
+  broadcast(input: string) {
+    const currentTime = new Date().toLocaleTimeString();
+
+    // broadcast message to all connected clients whose active channel is sender's active channel
+    Object.entries(this.members).forEach(([username, client]) => {
+      client.writeLine(`[${currentTime}] #${this.name} <${username}> ${input}`);
+    });
+
+    return true;
+  }
+
+  broadcastAsSystem(input: string) {
+    const currentTime = new Date().toLocaleTimeString();
+
+    // broadcast message to all connected clients with this channel as their active channel
+    Object.entries(this.members).forEach(([username, client]) => {
+      client.writeLine(`[${currentTime}] ***System: ${input}`);
+    });
+
+    return true;
   }
 
   kick(client: Client, requester: Client) {
-    if (requester._auth.username === this.admin._auth.username) {
-      delete this._members[client._auth.username!];
-      requester.writeLine(`Kicked ${client._auth.username} from ${this.name}.`);
-      client.writeLine(`You were kicked from ${this.name}.`);
+    if (requester.auth.username === this.admin.auth.username) {
+      delete this.members[client.auth.username!];
+      requester.writeLine(`Kicked ${client.auth.username} from ${this._name}.`);
+      delete client.channels[this._name];
+
+      // if channel they were kicked from was their active channel, unset their active channel
+      client.removeActiveChannel();
+
+      client.writeLine(`You were kicked from ${this._name}.`);
     } else {
-      requester.writeLine(`You aren't the admin of ${this.name}.`);
+      requester.writeLine(`You aren't the admin of ${this._name}.`);
     }
   }
 
   removeMember(client: Client) {
-    delete this._members[client._auth.username!];
-    client.writeLine(`Left ${this.name}.`);
+    delete this.members[client.auth.username!];
+    client.writeLine(`Left ${this._name}.`);
   }
 }
