@@ -5,11 +5,12 @@
   "author": "J.C. Hiatt",
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist && tsc",
-    "dev": "NODE_ENV=development nodemon",
+    "dev:chat": "NODE_ENV=development nodemon",
+    "dev": "npm-run-all dev:chat",
     "format": "prettier --write './**/*.{js,ts,md,json}' --config ./.prettierrc",
     "lint": "eslint --fix ./src",
-    "start": "NODE_ENV=production node ."
+    "start": "npm-run-all start:chat",
+    "start:chat": "NODE_ENV=production node ."
   },
   "dependencies": {},
   "devDependencies": {
@@ -18,8 +19,8 @@
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^4.0.0",
     "nodemon": "^2.0.12",
+    "npm-run-all": "^4.1.5",
     "prettier": "^2.3.2",
-    "rimraf": "^3.0.2",
     "ts-node": "^10.2.1",
     "typescript": "^4.4.2"
   }
