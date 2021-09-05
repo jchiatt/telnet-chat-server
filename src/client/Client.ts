@@ -10,6 +10,7 @@ export class Client {
   private _chatServer: ChatServer;
   private _channels: Record<string, Channel>;
   private _ip: string | null;
+  private _nickname: string;
   private _socket: Socket;
 
   constructor(socket: Socket, chatServer: ChatServer) {
@@ -18,6 +19,7 @@ export class Client {
     this._channels = {};
     this._chatServer = chatServer;
     this._ip = socket.remoteAddress || null;
+    this._nickname = this._auth.username!;
     this._socket = socket;
   }
 
