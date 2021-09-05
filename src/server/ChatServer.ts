@@ -2,6 +2,7 @@ import net, { Server, Socket } from "net";
 import { Client } from "../client/Client";
 import { Response } from "../message/Response";
 import { Channels, Clients } from "../types";
+import { serverWelcomeMessage } from "./serverWelcomeMessage";
 
 export class ChatServer {
   private _channels: Channels;
@@ -36,7 +37,7 @@ export class ChatServer {
 
   createClient(socket: Socket) {
     const client = new Client(socket, this);
-    client.writeLine("Welcome to Party Chat. We hope you enjoy your stay.");
+    client.writeLine(serverWelcomeMessage);
     client.listCommands();
 
     return client;
@@ -52,8 +53,10 @@ export class ChatServer {
     }
   }
 
-  listen(port?: number) {
-    this._server.listen(port || 8023);
+  listen(port: number = 8023) {
+    this._server.listen(port, () => {
+      console.log(`Chat server is running on http://localhost:${port}`);
+    });
   }
 
   onConnection(callback: (socket: Socket) => void) {
