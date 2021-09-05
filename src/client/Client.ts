@@ -139,8 +139,16 @@ export class Client {
         return this.switchActiveChannel(params.join(" "));
       }
       case "WHISPER": {
-        // /WHISPER <username> - Send a private message.
-        return;
+        // /WHISPER <username> <message> - Send a private message.
+        if (params.length < 2) {
+          this.writeLine("You must specify a username and a message.");
+          return false;
+        }
+
+        const user = params[0];
+        const message = params.slice(1).join(" ");
+
+        return this.whisper(user, message);
       }
       default: {
         // the default could be sending a message, but we're already handling that as a default in this.handleInput
@@ -259,7 +267,7 @@ export class Client {
       # /HERE <channel name> - List users in this channel. List global users if no channel provided.
       # /SWITCH <channel name> - Switch to a channel you're a member of.
       # /USERNAME <new username> - Change your username.
-      # /WHISPER <username> - Send a private message.
+      # /WHISPER <username> <message> - Send a private message.
       #####################################################################################################
     `);
 
@@ -350,6 +358,16 @@ export class Client {
     // switch the channel
     this._activeChannel = this.channels[name];
     this.writeLine(`Switched active channel to ${name}.`);
+    return true;
+  }
+
+  whisper(user: string, message: string) {
+    const currentTime = new Date().toLocaleTimeString();
+
+    this.chatServer.clients[user].writeLine(
+      `[${currentTime}] (whisper) <${this.auth.username}> ${message}`,
+    );
+
     return true;
   }
 
