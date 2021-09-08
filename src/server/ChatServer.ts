@@ -1,19 +1,21 @@
 import net, { Server, Socket } from "net";
 import { Client } from "../client/Client";
 import { Response } from "../message/Response";
-import { Channels, Clients } from "../types";
+import { Channels, ChatServerConfig, Clients } from "../types";
 import { serverWelcomeMessage } from "./serverWelcomeMessage";
 
 export class ChatServer {
   private _channels: Channels;
   private _clients: Clients;
   private _clientCount: number;
+  private _config: ChatServerConfig;
   private _server: Server;
 
-  constructor() {
+  constructor(config: ChatServerConfig) {
     this._channels = {};
     this._clients = {};
     this._clientCount = 0;
+    this._config = config;
 
     const server = net.createServer();
     this._server = server;
@@ -53,7 +55,7 @@ export class ChatServer {
     }
   }
 
-  listen(port: number = 8023) {
+  listen(port: number = this._config.port) {
     this._server.listen(port, () => {
       console.log(`Chat server is running on http://localhost:${port}`);
     });
