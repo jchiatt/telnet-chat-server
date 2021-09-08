@@ -86,7 +86,7 @@ export class Client {
     let [command, ...params] = input.slice(1).split(" ");
     command = command.toUpperCase();
 
-    if (!this._auth.authenticated && command !== "LOGIN") {
+    if (!this._auth.authenticated && command !== "LOGIN" && command !== "HELP") {
       const message = new Message(
         this._chatServer,
         this,
