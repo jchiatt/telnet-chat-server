@@ -2,6 +2,9 @@
 
 A Basic Telnet chat server, built with TypeScript.
 
+![Party Chat - Welcome Screen](https://github.com/jchiatt/telnet-chat-server/blob/master/img/welcome.png?raw=true)
+
+
 ## Setup
 
 First, install dependencies:
