@@ -5,12 +5,13 @@
   "author": "J.C. Hiatt",
   "license": "MIT",
   "scripts": {
+    "build": "tsc --project .",
     "dev:chat": "NODE_ENV=development nodemon",
     "dev": "npm-run-all dev:chat",
     "format": "prettier --write './**/*.{js,ts,md,json}' --config ./.prettierrc",
     "lint": "eslint --fix ./src",
     "start": "npm-run-all start:chat",
-    "start:chat": "NODE_ENV=production node ."
+    "start:chat": "NODE_ENV=production node dist/index.js"
   },
   "dependencies": {},
   "devDependencies": {

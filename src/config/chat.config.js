@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   port: 8023,
   logFiles: {
     app: process.cwd() + "/logs/app.log",

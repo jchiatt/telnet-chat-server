@@ -10,7 +10,6 @@ const chatServerConfig = initConfig();
 
 // Set up application logging
 setupLogging(chatServerConfig);
-
 const chatServer = new ChatServer(chatServerConfig);
 
 // Listen for connection events
