@@ -3,6 +3,7 @@
 A Basic Telnet chat server, built with TypeScript.
 
 ![Party Chat - Welcome Screen](https://github.com/jchiatt/telnet-chat-server/blob/master/img/welcome.png?raw=true)
+![Party Chat - Welcome Screen](https://github.com/jchiatt/telnet-chat-server/blob/master/img/chat.png?raw=true)
 
 
 ## Setup
@@ -30,6 +31,8 @@ telnet localhost 8023
 ```
 
 > Important: You'll need to authenticate before you'll be able to run any other commands. Type `/login <username>` to authenticate.
+
+![Party Chat - Welcome Screen](https://github.com/jchiatt/telnet-chat-server/blob/master/img/help.png?raw=true)
 
 ### Commands
 
