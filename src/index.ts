@@ -1,8 +1,12 @@
 import http from "http";
+import { setupLogging } from "./helpers/logToFile";
 import { ChatServer } from "./server/ChatServer";
 import { handleClientConnection } from "./server/handleClientConnection";
 import { handleClose } from "./server/handleClose";
 import { handleError } from "./server/handleError";
+
+// Set up application logging
+setupLogging();
 
 const chatServer = new ChatServer();
 

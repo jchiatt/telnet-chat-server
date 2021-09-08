@@ -34,6 +34,7 @@ export class Auth {
         "You are already authenticated. Type /LOGOUT to log out.",
       );
       messages.push(message);
+      return new Response(true, messages);
     }
 
     if (!username) {
@@ -43,6 +44,7 @@ export class Auth {
         "You must supply a username. Type /HELP for help.",
       );
       messages.push(message);
+      return new Response(true, messages);
     }
 
     if (this._chatServer.clients[username]) {
@@ -52,6 +54,7 @@ export class Auth {
         "Username already taken. Please try another.",
       );
       messages.push(message);
+      return new Response(true, messages);
     }
 
     // mark as authenticated and set the username

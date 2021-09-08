@@ -52,13 +52,19 @@ export class Channel {
     return messages;
   }
 
-  broadcast(input: string) {
+  broadcast(input: string, sender?: Client) {
     const currentTime = new Date().toLocaleTimeString();
     const messages: Message[] = [];
 
     // broadcast message to all connected clients whose active channel is this channel
     Object.values(this.members).forEach((client) => {
-      const message = new Message(this, client, `#${this.name} <${client.nickname}> ${input}`);
+      const senderNickname = sender ? sender.nickname : null;
+      const formattedSenderNickname = senderNickname ? `<${senderNickname}>` : "";
+      const message = new Message(
+        this,
+        client,
+        `#${this.name} ${formattedSenderNickname} ${input}`,
+      );
       messages.push(message);
     });
 
@@ -101,7 +107,7 @@ export class Channel {
   removeMember(client: Client) {
     delete this.members[client.auth.username!];
     const message = new Message(this, client, `Left ${this._name}.`);
-    return new Response(true, message);
+    return message;
   }
 
   send(message: string) {

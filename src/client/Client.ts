@@ -21,6 +21,7 @@ export class Client {
     this._channels = {};
     this._chatServer = chatServer;
     this._ip = socket.remoteAddress || null;
+
     this._nickname = null;
     this._socket = socket;
   }
@@ -64,7 +65,7 @@ export class Client {
       return response;
     }
 
-    return this.activeChannel.broadcast(input);
+    return this.activeChannel.broadcast(input, this);
   }
 
   greet() {
@@ -302,9 +303,7 @@ export class Client {
     }
 
     // Disable with extreme prejudice
-    this._chatServer.channels[channel].kick(client, this);
-
-    return true;
+    return this._chatServer.channels[channel].kick(client, this);
   }
 
   leaveChannel(name: string) {
@@ -329,7 +328,7 @@ export class Client {
 
     // channel exists, leave it
     const channel = this._chatServer.channels[name];
-    channel.removeMember(this);
+    const removalMessage = channel.removeMember(this);
     delete this._channels[name];
 
     const message = new Message(
@@ -343,7 +342,7 @@ export class Client {
       this._activeChannel = null;
     }
 
-    return new Response(true, message);
+    return new Response(true, [message, removalMessage]);
   }
 
   listCommands() {
@@ -366,7 +365,6 @@ export class Client {
       # /HELP - List available commands.
       # /HERE - List users in this channel.
       # /SWITCH <channel name> - Switch to a channel you're a member of.
-      # /USERNAME <new username> - Change your username.
       # /WHISPER <username> <message> - Send a private message.
       #####################################################################################################
     `,
@@ -433,7 +431,7 @@ export class Client {
       messages.push(message);
     });
 
-    return new Response(true, message);
+    return new Response(true, messages);
   }
 
   showUserChannels() {
@@ -455,7 +453,7 @@ export class Client {
       messages.push(message);
     });
 
-    return new Response(true, message);
+    return new Response(true, messages);
   }
 
   switchActiveChannel(name: string) {

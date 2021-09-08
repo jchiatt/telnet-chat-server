@@ -33,7 +33,43 @@ export class Message {
     return this._sender;
   }
 
+  log(message: string) {
+    let senderName: string | null = null;
+
+    // log to app.log via stdout monkeypatch
+    const senderType = this.sender && this.sender.constructor.name;
+
+    switch (senderType) {
+      case "Channel": {
+        // @ts-ignore
+        senderName = `#${this.sender.name}`;
+        break;
+      }
+      case "ChatServer": {
+        senderName = "ChatServer";
+        break;
+      }
+      case "Client": {
+        // @ts-ignore
+        senderName = this.sender.nickname;
+        break;
+      }
+      default: {
+        senderName = "ChatServer";
+      }
+    }
+
+    // @ts-ignore
+    console.log(`[${senderName}->${this.recipient.name || this.recipient.nickname}] ${message}`);
+  }
+
   send() {
-    this.recipient.send(`${this.createdAt} ${this.content}`);
+    const message = `${this.createdAt} ${this.content}`;
+
+    // send message to client
+    this.recipient.send(message);
+
+    // log the message
+    this.log(message);
   }
 }
