@@ -57,7 +57,7 @@ export class ChatServer {
 
   listen(port: number = this._config.port) {
     this._server.listen(port, () => {
-      console.log(`Chat server is running on http://localhost:${port}`);
+      console.log(`Chat server is running on localhost:${port}`);
     });
   }
 

@@ -90,7 +90,7 @@ export class Client {
       const message = new Message(
         this._chatServer,
         this,
-        "You are not authenticated. Type /AUTH to authenticate.",
+        "You are not authenticated. Type /LOGIN <username> to authenticate.",
       );
       return new Response(true, message);
     }
